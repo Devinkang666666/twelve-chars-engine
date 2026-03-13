@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>十二字排盘法 · 时空打靶仪</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19; --box-bg: #131a26; --text-main: #e6cca4; 
+            --accent-red: #ff4757; --accent-blue: #1e90ff; --accent-gold: #d4af37;
+        }
+        body {
+            background-color: var(--bg-color); color: var(--text-main);
+            font-family: "PingFang SC", "Microsoft YaHei", serif;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 20px 10px; margin: 0; overflow-x: hidden;
+        }
+        h1 { color: var(--accent-gold); letter-spacing: 5px; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 10px; margin-bottom: 20px; text-shadow: 0 0 15px rgba(212, 175, 55, 0.2);}
+
+        .control-panel {
+            background: rgba(30, 144, 255, 0.05); border: 1px solid rgba(30, 144, 255, 0.3);
+            padding: 20px; border-radius: 12px; width: 100%; max-width: 950px;
+            display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            transition: 0.3s;
+        }
+        .ctrl-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; align-items: center; }
+        .control-panel label { font-size: 0.9rem; color: var(--accent-blue); font-weight: bold; margin-left: 5px;}
+        .control-panel input, .control-panel select {
+            background: #000; color: #fff; border: 1px solid #4a5d82; padding: 6px 10px; 
+            border-radius: 6px; outline: none; font-size: 0.95rem; font-family: monospace;
+            transition: border-color 0.2s;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+        .control-panel input:focus, .control-panel select:focus { border-color: var(--accent-gold); box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);}
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 5px; }
+        button { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
+        .btn-query { background: var(--accent-gold); color: #000; box-shadow: 0 0 10px rgba(212, 175, 55, 0.4); }
+        .btn-real { background: var(--accent-blue); color: #fff; }
+        .btn-icon { background: #2a364f; color: #fff; padding: 6px 10px; border: 1px solid #4a5d82; }
+        button:hover { transform: scale(1.05); filter: brightness(1.2); }
+
+        .active-query { border-color: var(--accent-gold) !important; background: rgba(212, 175, 55, 0.05) !important; box-shadow: 0 0 15px rgba(212, 175, 55, 0.2) !important; }
+        .mode-status { text-align: center; font-size: 0.85rem; color: #aaa; margin-top: -5px; margin-bottom: 15px; font-family: monospace; }
+
+        .methods-column { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
+        .method-card { background: var(--box-bg); border: 2px solid #2a364f; border-radius: 12px; padding: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+        .method-title { color: var(--accent-gold); font-size: 1.1rem; border-bottom: 1px dashed #445; padding-bottom: 8px; margin-bottom: 15px; font-weight: bold; }
+        
+        .pillars-row { display: flex; flex-direction: row-reverse; gap: 8px; justify-content: center; }
+        .pillar { background: #000; border: 1px solid #3a4b6b; border-radius: 8px; width: 85px; padding: 10px 2px 15px 2px; text-align: center; position: relative; overflow: hidden; }
+        .pillar-title { font-size: 0.75rem; color: #7b8ea6; margin-bottom: 8px; border-bottom: 1px solid #2a364f; padding-bottom: 2px; }
+        .char { font-size: 2.2rem; font-weight: bold; line-height: 1.2; text-shadow: 0 0 8px rgba(0,0,0,0.9); }
+        .prog { position: absolute; bottom: 0; left: 0; width: 100%; height: 5px; background: #000; }
+        .prog-bar { height: 100%; width: 0%; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+    </style>
+</head>
+<body>
+
+    <h1>十二字排盘法</h1>
+
+    <div class="control-panel" id="ctrl-panel">
+        <div class="ctrl-row">
+            <label>📍 观测坐标:</label>
+            <select id="tz-select" onchange="onTzChange()">
+                <option value="Asia/Shanghai">北京时间 (UTC+8)</option>
+                <option value="America/New_York">纽约/美东 (EDT/EST)</option>
+                <option value="America/Chicago">马斯克-德州 (CDT/CST)</option>
+                <option value="Europe/London">伦敦 (UTC+0)</option>
+            </select>
+        </div>
+        <div class="ctrl-row">
+            <label>📅 日期:</label>
+            <input type="date" id="q-date">
+            <button type="button" class="btn-icon" onclick="openDatePicker()" title="点击呼出日历">📅 选日期</button>
+            <label style="margin-left:10px;">⏰ 时间:</label>
+            <select id="q-hour"></select> 时
+            <select id="q-min"></select> 分
+            <input type="number" id="q-sec" value="0" min="0" max="59" style="width: 55px;"> 秒
+        </div>
+        <div class="ctrl-row btn-group">
+            <button class="btn-query" onclick="setQueryMode()">🚀 锁定并排盘</button>
+            <button class="btn-real" onclick="setRealMode()">⏱️ 恢复实时</button>
+        </div>
+    </div>
+    
+    <div class="mode-status" id="mode-display">🟢 当前状态：实时运转中</div>
+
+    <div class="methods-column" id="container"></div>
+
+    <script>
+        const wxColors = { '木': '#2ecc71', '火': '#ff4757', '土': '#a0522d', '金': '#ecf0f1', '水': '#1e90ff' };
+        const stems =["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"], stemWx =["木","木","火","火","土","土","金","金","水","水"];
+        const branches =["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"], branchWx =["水","土","木","木","土","火","火","土","金","金","土","水"];
+        const monthBranches =[1,2,3,4,5,6,7,8,9,10,11,0];
+
+        let isRealTime = true;
+        let lastTickSec = -1; 
+
+        (function init(){
+            const h = document.getElementById('q-hour'), m = document.getElementById('q-min');
+            for(let i=0;i<24;i++) h.add(new Option(i.toString().padStart(2,'0'), i));
+            for(let i=0;i<60;i++) m.add(new Option(i.toString().padStart(2,'0'), i));
+            
+            const inputs =['q-date', 'q-hour', 'q-min', 'q-sec'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                el.addEventListener('mousedown', setQueryMode);
+                el.addEventListener('touchstart', setQueryMode);
+                el.addEventListener('keydown', setQueryMode);
+            });
+            syncInputsToTz(); 
+        })();
+
+        function openDatePicker() {
+            setQueryMode();
+            const dateInput = document.getElementById('q-date');
+            try { dateInput.showPicker(); } catch (e) { dateInput.focus(); }
+        }
+
+        function getTzParts(tz) {
+            let d = new Date();
+            let formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: tz, year: 'numeric', month: 'numeric', day: 'numeric',
+                hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false
+            });
+            let p = formatter.formatToParts(d);
+            let res = {}; p.forEach(x => res[x.type] = x.value);
+            return { y: parseInt(res.year), m: parseInt(res.month)-1, d: parseInt(res.day), h: parseInt(res.hour)%24, min: parseInt(res.minute), s: parseInt(res.second), ms: d.getMilliseconds() };
+        }
+
+        function onTzChange() { if (isRealTime) syncInputsToTz(); }
+
+        function syncInputsToTz() {
+            let p = getTzParts(document.getElementById('tz-select').value);
+            document.getElementById('q-date').value = `${p.y}-${String(p.m+1).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`;
+            document.getElementById('q-hour').value = p.h;
+            document.getElementById('q-min').value = p.min;
+            document.getElementById('q-sec').value = p.s;
+        }
+
+        function setQueryMode() {
+            if(!isRealTime) return; 
+            isRealTime = false;
+            document.getElementById('ctrl-panel').classList.add('active-query');
+            document.getElementById('mode-display').innerHTML = "🔴 当前状态：时空已锁定 (查询模式)";
+            document.getElementById('mode-display').style.color = "var(--accent-gold)";
+        }
+
+        function setRealMode() {
+            isRealTime = true;
+            lastTickSec = -1; 
+            document.getElementById('ctrl-panel').classList.remove('active-query');
+            document.getElementById('mode-display').innerHTML = "🟢 当前状态：实时运转中";
+            document.getElementById('mode-display').style.color = "#aaa";
+        }
+
+        function getTargetComponents() {
+            if (isRealTime) {
+                return getTzParts(document.getElementById('tz-select').value);
+            } else {
+                let dStr = document.getElementById('q-date').value; 
+                if (!dStr) return getTzParts(document.getElementById('tz-select').value);
+                let [y, m, d] = dStr.split('-').map(Number);
+                let h = parseInt(document.getElementById('q-hour').value);
+                let min = parseInt(document.getElementById('q-min').value);
+                let s = parseInt(document.getElementById('q-sec').value);
+                return { y: y, m: m - 1, d: d, h: h, min: min, s: s, ms: 0 };
+            }
+        }
+
+        function draw() {
+            const tObj = getTargetComponents();
+            
+            if (isRealTime && tObj.s !== lastTickSec) {
+                document.getElementById('q-date').value = `${tObj.y}-${String(tObj.m+1).padStart(2,'0')}-${String(tObj.d).padStart(2,'0')}`;
+                document.getElementById('q-hour').value = tObj.h;
+                document.getElementById('q-min').value = tObj.min;
+                document.getElementById('q-sec').value = tObj.s;
+                lastTickSec = tObj.s;
+            }
+
+            const curS = tObj.s + tObj.ms/1000;
+            const curM = tObj.min + curS/60;
+            const curH = tObj.h + curM/60;
+            const floatM = (tObj.h % 2 === 0 ? 60 : 0) + curM; 
+
+            const intM = (tObj.h % 2 === 0 ? 60 : 0) + tObj.min; 
+            const intS = intM * 60 + tObj.s; 
+
+            let bY = tObj.y; if(tObj.m === 0 || (tObj.m === 1 && tObj.d < 4)) bY--;
+            const yIdx = (bY - 4 + 60) % 60;
+            const yProg = ((tObj.m * 30 + tObj.d + curH/24) / 365) * 100;
+
+            const mb = monthBranches[tObj.m];
+            const msIdx = (((yIdx % 10 % 5) * 2 + 2) + (mb - 2 + 12) % 12) % 10;
+            const mProg = Math.min((tObj.d + curH/24) / 30 * 100, 100);
+
+            const base = Date.UTC(2026, 2, 10) / 86400000;
+            const target = Date.UTC(tObj.y, tObj.m, tObj.d) / 86400000;
+            let dIdx = (19 + (target - base) % 60 + 60) % 60;
+            if(tObj.h === 23) dIdx = (dIdx + 1) % 60; 
+            const dProg = ((curH + 1) % 24 / 24) * 100;
+
+            const hb = Math.floor((tObj.h + 1) / 2) % 12;
+            const hs = ((dIdx % 10 % 5) * 2 + hb) % 10;
+            const hProg = (((curH + 1) % 2) / 2) * 100;
+
+            const getP = (title, si, bi, pr) => ({ title, g:stems[si], z:branches[bi], gc:wxColors[stemWx[si]], zc:wxColors[branchWx[bi]], pr });
+            
+            const macro =[
+                getP("年", yIdx%10, yIdx%12, yProg), getP("月", msIdx, mb, mProg),
+                getP("日", dIdx%10, dIdx%12, dProg), getP("时(2h)", hs, hb, hProg)
+            ];
+
+            // 1. Dylan 全息法
+            const m1_stepM = Math.floor(intM / 10); 
+            const m1_mS = ((hs % 5) * 2 + m1_stepM) % 10;
+            const m1_mB = m1_stepM % 12;
+            const m1_stepS = Math.floor((intS % 600) / 10); 
+            const m1_sIdx = (((m1_mS % 5) * 12) + m1_stepS) % 60;
+            const m1 =[...macro, getP("分(10m)", m1_mS, m1_mB, (floatM%10/10)*100), getP("秒(10s)", m1_sIdx%10, m1_sIdx%12, (curS%10/10)*100)];
+
+            // 2. 皇极经世
+            const m2_stepM = Math.floor(intM / 4);
+            const m2_mS = ((hs % 5) * 2 + m2_stepM) % 10;
+            const m2_mB = m2_stepM % 12;
+            const m2_stepS = Math.floor((intS % 240) / 20); 
+            const m2_sS = ((m2_mS % 5) * 2 + m2_stepS) % 10;
+            const m2_sB = m2_stepS % 12;
+            const m2 =[...macro, getP("分(4m)", m2_mS, m2_mB, (floatM%4/4)*100), getP("秒(20s)", m2_sS, m2_sB, (curS%20/20)*100)];
+
+            // 3. 六壬刻法 —— 核心修复：单独剥离出无秒柱的特殊渲染对象
+            const m3_stepM = Math.floor(intM / 15);
+            const m3_mS = ((hs % 5) * 2 + m3_stepM) % 10;
+            const m3_mB = m3_stepM % 12;
+            // 为六壬派的秒专属定制空置遮罩
+            const m3_dummySec = { title: "秒(无)", g:"--", z:"--", gc:"#666", zc:"#666", pr:0, op: 0.3 };
+            const m3 =[...macro, getP("刻(15m)", m3_mS, m3_mB, (floatM%15/15)*100), m3_dummySec];
+
+            // 4. 现代排盘
+            const m4_stepM = Math.floor(intM / 2);
+            const m4_mS = ((hs % 5) * 2 + m4_stepM) % 10;
+            const m4_mB = m4_stepM % 12;
+            const m4_stepS = Math.floor((intS % 120) / 2); 
+            const m4_sIdx = (((m4_mS % 5) * 12) + m4_stepS) % 60;
+            const m4 =[...macro, getP("分(2m)", m4_mS, m4_mB, (floatM%2/2)*100), getP("秒(2s)", m4_sIdx%10, m4_sIdx%12, (curS%2/2)*100)];
+
+            // 渲染函数新增 op (opacity) 遮罩透明度支持
+            const renderMethod = (name, pillars) => `
+                <div class="method-card">
+                    <div class="method-title">${name}</div>
+                    <div class="pillars-row">
+                        ${pillars.reverse().map(p => `
+                            <div class="pillar" style="${p.op ? `opacity:${p.op};` : ''}">
+                                <div class="pillar-title">${p.title}</div>
+                                <div class="char" style="color:${p.gc}">${p.g}</div>
+                                <div class="char" style="color:${p.zc}">${p.z}</div>
+                                <div class="prog"><div class="prog-bar" style="width:${p.pr}%; background:${p.gc}"></div></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+
+            document.getElementById('container').innerHTML = 
+                renderMethod("1. Dylan原创全息法", m1) + 
+                renderMethod("2. 皇极经世派 (邵雍)", m2) + 
+                renderMethod("3. 六壬/奇门派 (古兵法)", m3) + 
+                renderMethod("4. 现代排盘派 (平分法)", m4);
+
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
